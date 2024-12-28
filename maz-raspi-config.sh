@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 
-# Mark A. Ziesemer, 2022-02-12, 2022-03-26
+# Mark A. Ziesemer, 2022-02-12, 2024-12-28
 
 set -euo pipefail
+
+if [ "${1:-}" == "--os-version" ]; then
+	. /etc/os-release
+	echo "OS_ID=$ID"
+	echo "OS_VERSION_ID=$VERSION_ID"
+	exit
+fi
 
 _scriptUser='root'
 
@@ -19,6 +26,8 @@ _kxbModel='pc104'
 _kxbLayout='us'
 _wlanCountry='US'
 
+eval $("$0" --os-version)
+
 # 3. Interface Options
 
 # 3I1. SSH
@@ -29,15 +38,19 @@ _wlanCountry='US'
 
 # 4P2. GPU Memory
 
-_gpuMemCur=$(raspi-config nonint get_config_var gpu_mem /boot/config.txt)
-echo "Current GPU Memory Split: $_gpuMemCur"
-if [ "$_gpuMemCur" != "$_gpuMem" ]; then
-	echo 'Updating GPU Memory Split...'
-	raspi-config nonint do_memory_split "$_gpuMem"
+if (( $OS_VERSION_ID < 12 )); then
 	_gpuMemCur=$(raspi-config nonint get_config_var gpu_mem /boot/config.txt)
-	echo "Updated GPU Memory Split: $_gpuMemCur"
+	echo "Current GPU Memory Split: $_gpuMemCur"
+	if [ "$_gpuMemCur" != "$_gpuMem" ]; then
+		echo 'Updating GPU Memory Split...'
+		raspi-config nonint do_memory_split "$_gpuMem"
+		_gpuMemCur=$(raspi-config nonint get_config_var gpu_mem /boot/config.txt)
+		echo "Updated GPU Memory Split: $_gpuMemCur"
+	else
+		echo 'Not updating GPU Memory Split.'
+	fi
 else
-	echo 'Not updating GPU Memory Split.'
+	echo 'Raspbian / Debian bookworm or above; skipping raspi-config do_memory_split.'
 fi
 echo
 
